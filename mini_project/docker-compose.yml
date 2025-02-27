@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - celery
+      - celery-beat
+
+  celery:
+    build: .
+    restart: always
+    command: celery -A sales_trading worker --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - web
+
+  celery-beat:
+    build: .
+    restart: always
+    command: celery -A sales_trading beat --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - celery

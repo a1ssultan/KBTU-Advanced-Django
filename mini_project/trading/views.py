@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from trading.models import Order, Transaction
 from trading.serializers import OrderSerializer, TransactionSerializer
 from users.permissions import IsAdmin, IsOwnerOrAdmin
+from .tasks import send_order_status_email
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -14,19 +15,22 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        order = serializer.save(user=self.request.user)
+        send_order_status_email.delay(order.user.email, order.id, "created")
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdmin])
     def complete(self, request, pk=None):
         order = self.get_object()
         order.mark_as_completed()
         Transaction.objects.create(order=order, price=Decimal(order.product.price) * order.quantity)
+        send_order_status_email.delay(order.user.email, order.id, "completed")
         return Response({"status": "completed"})
 
     @action(detail=True, methods=["post"], permission_classes=[IsOwnerOrAdmin])
     def cancel(self, request, pk=None):
         order = self.get_object()
         order.mark_as_canceled()
+        send_order_status_email.delay(order.user.email, order.id, "canceled")
         return Response({"status": "canceled"})
 
 
