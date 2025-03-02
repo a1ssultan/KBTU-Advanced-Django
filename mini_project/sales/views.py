@@ -1,7 +1,11 @@
+from decimal import Decimal
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
+from trading.models import Transaction
+from users.permissions import IsAdmin, IsOwnerOrAdmin
 from .models import SalesOrder, Promotion, Invoice
 from .serializers import SalesOrderSerializer, PromotionSerializer, InvoiceSerializer
 
@@ -35,6 +39,18 @@ class SalesOrderViewSet(viewsets.ModelViewSet):
         order.discount = promo
         order.save()
         return Response({"message": "Промокод применен!", "final_price": order.final_price}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAdmin])
+    def complete(self, request, pk=None):
+        order = self.get_object()
+        order.mark_as_completed()
+        return Response({"status": "completed"})
+
+    @action(detail=True, methods=["post"], permission_classes=[IsOwnerOrAdmin])
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+        order.mark_as_canceled()
+        return Response({"status": "canceled"})
 
 
 class PromotionViewSet(viewsets.ModelViewSet):

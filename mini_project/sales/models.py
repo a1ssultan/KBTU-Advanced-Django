@@ -55,12 +55,18 @@ class SalesOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        base_price = self.product.price * self.quantity
+        if not self.unit_price:
+            self.unit_price = self.product.price
+
+        base_price = self.unit_price * self.quantity
+
         if self.discount and self.discount.is_active():
             self.final_price = self.discount.apply_discount(base_price)
         else:
             self.final_price = base_price
+
         super().save(*args, **kwargs)
+
 
     def mark_as_completed(self):
         self.status = SalesOrderStatus.COMPLETED
